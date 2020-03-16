@@ -3,7 +3,7 @@ from flask import flash
 from flask import redirect
 from flask import url_for
 from flask import request
-from flaskblog.forms import RegistrationForm, LoginForm
+from flaskblog.forms import RegistrationForm, LoginForm, UpdateAccountForm
 from flaskblog.models import User,Post
 from flaskblog import app
 from flaskblog import db, bcrypt
@@ -11,24 +11,27 @@ from flask_login import login_user
 from flask_login import current_user
 from flask_login import logout_user
 from flask_login import login_required
+import secrets
+import os 
+from PIL import Image
 
 posts = [
     {
         'author': 'Dova Kin',
-        'title': 'First Post',
-        'content': 'First post.',
+        'title': 'For the Nords',
+        'content': 'Skyrim is for the Nords.',
         'date_posted': '20200301'
     },
     {
         'author': 'Angi\'s Cabin',
-        'title': 'Second Post',
-        'content': 'Second post.',
+        'title': 'Practice',
+        'content': 'You need more practice. Here are some practice arrows.',
         'date_posted': '20200302'
     },
     {
         'author': 'Lydia Doorblocker',
-        'title': 'Third Post',
-        'content': 'I am sworn to carry your burdens.',
+        'title': 'Housecarl Duties?',
+        'content': 'I will protect you, and all you own, with my life.',
         'date_posted': '20200302'
     }
 ]
@@ -81,10 +84,38 @@ def login():
 @app.route("/logout", methods=['GET'])
 @login_required
 def logout():  
-    logout_user()
+    logout_user() 
     return redirect(url_for('home'))
 
-@app.route("/account", methods=['GET'])
+def save_picture( form_picture ):
+    random_hex = secrets.token_hex(8)
+    _, f_ext = os.path.splitext(form_picture.filename)
+    picture_fn = f'{random_hex}{f_ext}'
+    picture_path = os.path.join( app.root_path, 'static/profile_pics', picture_fn )
+    output_size = (125,125)
+    i = Image.open(form_picture)
+    i.thumbnail(output_size)
+    i.save(picture_path)
+    
+    # form_picture.save(picture_path)
+    return picture_fn
+
+
+@app.route("/account", methods=['GET', 'POST'])
 @login_required
 def account():  
-    return render_template('account.html', title='Account')
+    form = UpdateAccountForm()
+    if form.validate_on_submit():
+        if form.picture.data:
+            picture_file = save_picture(form.picture.data) 
+            current_user.image_file = picture_file
+        current_user.username = form.username.data 
+        current_user.email = form.email.data 
+        db.session.commit()
+        flash('Your account has been updated', 'success')
+        return redirect( url_for('account'))
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+        form.email.data = current_user.email
+    image_file = url_for('static', filename=f'profile_pics/{current_user.image_file}' )
+    return render_template('account.html', title='Account', image_file=image_file, form=form)
