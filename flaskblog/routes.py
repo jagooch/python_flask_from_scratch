@@ -40,6 +40,7 @@ posts = [
 @app.route("/")
 @app.route("/home")
 def home():
+    posts = Post.query.all()
     return render_template('home.html', posts=posts)
 
 
@@ -125,7 +126,16 @@ def account():
 def new_post():  
     form = PostForm()
     if form.validate_on_submit():
+        post = Post(title=form.title.data, content=form.content.data, author=current_user)
+        db.session.add(post)
+        db.session.commit()
         flash('Your post has been created!', 'success')
         return redirect( url_for('home') )
     else:
         return render_template('create_post.html', title='New Post', form=form)
+
+@app.route("/post/<int:post_id>", methods=['GET', 'POST'])
+@login_required
+def post(post_id):  
+    post = Post.query.get_or_404(post_id) # get post or return 404 
+    return render_template('post.html', title=post.title, post=post)
