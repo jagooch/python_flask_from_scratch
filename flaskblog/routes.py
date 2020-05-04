@@ -3,6 +3,8 @@ from flask import flash
 from flask import redirect
 from flask import url_for
 from flask import request
+from flask import abort
+
 from flaskblog.forms import RegistrationForm, LoginForm, UpdateAccountForm, PostForm
 from flaskblog.models import User,Post
 from flaskblog import app
@@ -64,22 +66,39 @@ def register():
     else:
         return render_template('register.html', title='Register', form=form)
 
-@app.route("/login", methods=[ 'GET', 'POST'])
-def login():  
+# @app.route("/login", methods=[ 'GET', 'POST'])
+# def login():  
+#     if current_user.is_authenticated:
+#         return redirect(url_for('home'))
+#     else: 
+#         form = LoginForm()
+#         if form.validate_on_submit():  
+#             user = User.query.filter_by(email=form.email.data).first()        
+#             if user and bcrypt.check_password_hash( user.password, form.password.data):
+#                 login_user(user, remember=form.remember.data)
+#                 # next_page = request.args.get('next') # if user was trying to go someplace before signing in, direct them to that page.
+#                 # return redirect(next_page) if next_page else redirect(url_for('home') )
+#                 return redirect(url_for('home') )
+                
+#             else:
+#                 flash(f'Login Failed. Check email and password.', 'danger')
+#         else:
+#             return render_template('login.html', title='Login', form=form)
+
+@app.route("/login", methods=['GET', 'POST'])
+def login():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
     form = LoginForm()
-    if form.validate_on_submit():  
-        user = User.query.filter_by(email=form.email.data).first()        
-        if user and bcrypt.check_password_hash( user.password, form.password.data):
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user and bcrypt.check_password_hash(user.password, form.password.data):
             login_user(user, remember=form.remember.data)
-            next_page = request.args.get('next') # if user was trying to go someplace before signing in, direct them to that page.
-            return redirect(next_page) if next_page else redirect(url_for('home') )
-             
+            next_page = request.args.get('next')
+            return redirect(next_page) if next_page else redirect(url_for('home'))
         else:
-            flash(f'Login Failed. Check email and password.', 'danger')
-    else:
-        return render_template('login.html', title='Login', form=form)
+            flash('Login Unsuccessful. Please check email and password', 'danger')
+    return render_template('login.html', title='Login', form=form)
 
 
 @app.route("/logout", methods=['GET'])
@@ -138,4 +157,15 @@ def new_post():
 @login_required
 def post(post_id):  
     post = Post.query.get_or_404(post_id) # get post or return 404 
+    return render_template('post.html', title=post.title, post=post)
+
+
+@app.route("/post_update/<int:post_id>/update", methods=['GET', 'POST'])
+@login_required
+def update_post(post_id):  
+    post = Post.query.get_or_404(post_id) # get post or return 404 
+    if post.author != current_user:
+        abort(403)
+    else:
+        form = PostForm()
     return render_template('post.html', title=post.title, post=post)
