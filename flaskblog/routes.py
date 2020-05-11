@@ -42,7 +42,8 @@ posts = [
 @app.route("/")
 @app.route("/home")
 def home():
-    posts = Post.query.all()
+    page = request.args.get( 'page', 1, type=int )
+    posts = Post.query.order_by( Post.date_posted.desc()).paginate( per_page=2,page=page )
     return render_template('home.html', posts=posts)
 
 
@@ -190,6 +191,13 @@ def delete_post(post_id):
     flash('Your post has been deleted', 'success' )
     return redirect( url_for('home') )
 
+@app.route("/user/<str:username>")
+def user_posts(username):
+    user = Users.query.filter_by( username=username ).first_or_404()
+    posts = Post.query\
+        .order_by(Post.date_posts.desc())\
+        .filter_by( author=username)\
+        .paginate(page=page, per_page=2)
 
 
 
